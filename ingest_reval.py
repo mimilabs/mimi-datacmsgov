@@ -54,8 +54,6 @@ def change_header(header_org):
     return [re.sub(r'\W+', '', column.lower().replace(' ','_'))
             for column in header_org]
 
-pdf_lst = []
-
 for item in files:
     # each file is relatively small enough (~600MB)
     # but the size is increasing every month

@@ -31,6 +31,7 @@ def download_file(url, filename, path, folder):
                 f.write(chunk)
 
 def download_files(urls, path, folder, filenames = None):
+
     for i, download_url in enumerate(urls):
         filename = download_url.split("/")[-1]
         if filenames is not None:
@@ -144,7 +145,19 @@ download_urls = (spark.read.table("mimi_ws_1.datacmsgov.datacatalog")
                     .filter(col("title")
                         .contains("Medicare Durable Medical Equipment, Devices & Supplies - by"))
                     .toPandas()["downloadURL"].to_list())
-download_files(download_urls, volumepath, "mupdme")
+
+messy_fn_to_clean_fn = {"Medicare%20Durable%20Medical%20Equipment%2C%20Devices%20%26%20Supplies%20-%20by%20Referring%20Provider%20and%20Service%20Data%202013.csv": "mup_dme_r19_p08_v10_d13_prvhpr.csv",
+"Medicare%20Durable%20Medical%20Equipment%2C%20Devices%20%26%20Supplies%20-%20by%20Referring%20Provider%20and%20Service%20Data%202014_0.csv": "mup_dme_r19_p08_v10_d14_prvhpr.csv",
+"Medicare%20Durable%20Medical%20Equipment%2C%20Devices%20%26%20Supplies%20-%20by%20Referring%20Provider%20and%20Service%20Data%202015_0.csv": "mup_dme_r19_p08_v10_d15_prvhpr.csv",
+"Medicare%20Durable%20Medical%20Equipment%2C%20Devices%20%26%20Supplies%20-%20by%20Referring%20Provider%20and%20Service%20Data%202016.csv": "mup_dme_r19_p08_v10_d16_prvhpr.csv",
+"Medicare%20Durable%20Medical%20Equipment%2C%20Devices%20%26%20Supplies%20-%20by%20Referring%20Provider%20and%20Service%20Data%202017.csv": "mup_dme_r19_p08_v10_d17_prvhpr.csv",
+"Medicare%20Durable%20Medical%20Equipment%2C%20Devices%20%26%20Supplies%20-%20by%20Referring%20Provider%20Data%202015.csv": "mup_dme_r19_p08_v10_d15_prvr.csv",
+"Medicare%20Durable%20Medical%20Equipment%2C%20Devices%20%26%20Supplies%20-%20by%20Referring%20Provider%20Data%202016.csv": "mup_dme_r19_p08_v10_d16_prvr.csv",
+"Medicare%20Durable%20Medical%20Equipment%2C%20Devices%20%26%20Supplies%20-%20by%20Referring%20Provider%20Data%202017.csv": "mup_dme_r19_p08_v10_d17_prvr.csv"}
+
+filenames = [messy_fn_to_clean_fn.get(url.split("/")[-1], url.split("/")[-1])
+             for url in download_urls]
+download_files(download_urls, volumepath, "mupdme", filenames=filenames)
 
 # COMMAND ----------
 
@@ -189,6 +202,21 @@ pdf = (spark.read.table("mimi_ws_1.datacmsgov.datacatalog")
                     .toPandas())
 download_urls = pdf["downloadURL"].to_list()
 download_files(download_urls, volumepath, "optout")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Outpatient
+
+# COMMAND ----------
+
+pdf = (spark.read.table("mimi_ws_1.datacmsgov.datacatalog")
+                    .filter(col("mediaType")=="text/csv")
+                    .filter(col("title")
+                        .contains("Medicare Outpatient Hospitals - by"))
+                    .toPandas())
+download_urls = pdf["downloadURL"].to_list()
+download_files(download_urls, volumepath, "mupohp")
 
 # COMMAND ----------
 
