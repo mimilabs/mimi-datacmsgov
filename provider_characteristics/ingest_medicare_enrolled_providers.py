@@ -2,6 +2,7 @@
 # MAGIC %md
 # MAGIC # Ingest the PECOS files
 # MAGIC
+# MAGIC Provider Characteristics - Medicare-enrolled Providers
 
 # COMMAND ----------
 
@@ -17,7 +18,7 @@ import pandas as pd
 path = "/Volumes/mimi_ws_1/datacmsgov/src" # where all the input files are located
 catalog = "mimi_ws_1" # delta table destination catalog
 schema = "datacmsgov" # delta table destination schema
-tablename = "ppef" # destination table
+tablename = "pc_provider" # destination table
 
 # COMMAND ----------
 

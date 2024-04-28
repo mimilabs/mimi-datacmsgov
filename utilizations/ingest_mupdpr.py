@@ -80,9 +80,9 @@ for item in files:
     for col_old, col_new in zip(df.columns, change_header(df.columns)):
         header.append(col_new)
         if col_new in int_columns:
-            df = df.withColumn(col_new, regexp_replace(col(col_old), "[$,%]", "").cast("int"))
+            df = df.withColumn(col_new, regexp_replace(col(col_old), "[\$,%]", "").cast("int"))
         elif col_new in double_columns:
-            df = df.withColumn(col_new, regexp_replace(col(col_old), "[$,%]", "").cast("double"))
+            df = df.withColumn(col_new, regexp_replace(col(col_old), "[\$,%]", "").cast("double"))
         else:
             df = df.withColumn(col_new, col(col_old))
     df = (df.select(*header)
@@ -160,9 +160,9 @@ for item in files:
     for col_old, col_new in zip(df.columns, change_header(df.columns)):
         header.append(col_new)
         if col_new in int_columns:
-            df = df.withColumn(col_new, regexp_replace(col(col_old), "[$,%]", "").cast("int"))
+            df = df.withColumn(col_new, regexp_replace(col(col_old), "[\$,%]", "").cast("int"))
         elif col_new in double_columns:
-            df = df.withColumn(col_new, regexp_replace(col(col_old), "[$,%]", "").cast("double"))
+            df = df.withColumn(col_new, regexp_replace(col(col_old), "[\$,%]", "").cast("double"))
         else:
             df = df.withColumn(col_new, col(col_old))
     df = (df.select(*header)
@@ -226,9 +226,9 @@ for item in files:
     for col_old, col_new in zip(df.columns, change_header(df.columns)):
         header.append(col_new)
         if col_new in int_columns:
-            df = df.withColumn(col_new, regexp_replace(col(col_old), "[$,%]", "").cast("int"))
+            df = df.withColumn(col_new, regexp_replace(col(col_old), "[\$,%]", "").cast("int"))
         elif col_new in double_columns:
-            df = df.withColumn(col_new, regexp_replace(col(col_old), "[$,%]", "").cast("double"))
+            df = df.withColumn(col_new, regexp_replace(col(col_old), "[\$,%]", "").cast("double"))
         else:
             df = df.withColumn(col_new, col(col_old))
     df = (df.select(*header)

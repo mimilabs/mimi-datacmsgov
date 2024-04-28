@@ -38,7 +38,7 @@ def download_files(urls, path, folder, filenames = None):
             filename = filenames[i]
         # Check if the file exists
         if Path(f"{path}/{folder}/{filename}").exists():
-            print(f"{filename} already exists, skipping...")
+            #print(f"{filename} already exists, skipping...")
             continue
         else:
             print(f"{filename} downloading...")
@@ -82,26 +82,6 @@ for d in res.json()["dataset"]:
         .format("delta")
         .mode("overwrite")
         .saveAsTable(f"{catalog}.{schema}.{tablename}"))
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC
-# MAGIC ## PPEF
-
-# COMMAND ----------
-
-download_urls = (spark.read.table("mimi_ws_1.datacmsgov.datacatalog")
-                    .filter(col("mediaType")=="text/csv")
-                    .filter(col("title")
-                        .contains("Medicare Fee-For-Service Public Provider Enrollment"))
-                    .toPandas()["downloadURL"].to_list())
-download_files(download_urls, volumepath, "ppef")
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC
 
 # COMMAND ----------
 

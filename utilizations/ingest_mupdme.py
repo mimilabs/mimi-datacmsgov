@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Ingest the Medicare Physician files
+# MAGIC # Ingest the Medicare DME files
 # MAGIC
 # MAGIC Three different levels of files exist:
 # MAGIC
@@ -25,7 +25,7 @@ import pandas as pd
 path = "/Volumes/mimi_ws_1/datacmsgov/src" # where all the input files are located
 catalog = "mimi_ws_1" # delta table destination catalog
 schema = "datacmsgov" # delta table destination schema
-tablename = "mupphy" # destination table
+tablename = "mupdme" # destination table
 
 # COMMAND ----------
 
@@ -56,7 +56,7 @@ if spark.catalog.tableExists(f"{catalog}.{schema}.{tablename}"):
 # COMMAND ----------
 
 files = []
-for filepath in Path(f"{path}/{tablename}").glob("*_Prov_Svc*"):
+for filepath in Path(f"{path}/{tablename}").glob("*_prvhpr*"):
     year = '20' + re.search("\_d[y]*(\d+)\_", filepath.stem.lower()).group(1)
     dt = parse(f"{year}-12-31").date()
     if dt not in files_exist:
@@ -65,14 +65,15 @@ files = sorted(files, key=lambda x: x[0], reverse=True)
 
 # COMMAND ----------
 
-int_columns = {"tot_benes", 
-               "tot_srvcs", 
-               "tot_bene_day_srvcs"}
-double_columns = {"avg_sbmtd_chrg", 
-                  "avg_mdcr_alowd_amt",
-                  "avg_mdcr_pymt_amt",
-                  "avg_mdcr_stdzd_amt"}
-legacy_columns = {}
+int_columns = {"tot_suplrs", "tot_suplr_benes", 
+               "tot_suplr_clms", "tot_suplr_srvcs"}
+double_columns = {"avg_suplr_sbmtd_chrg", 
+                  "avg_suplr_mdcr_alowd_amt",
+                  "avg_suplr_mdcr_pymt_amt",
+                  "avg_suplr_mdcr_stdzd_amt"}
+legacy_columns = {"rfrg_prvdr_last_name": "rfrg_prvdr_last_name_org",
+                  "rfrg_crdntls": "rfrg_prvdr_crdntls",
+                  "rfrg_ent_cd": "rfrg_prvdr_ent_cd"}
 
 for item in files:
     # each file is relatively big
@@ -88,9 +89,9 @@ for item in files:
         header.append(col_new)
         
         if col_new in int_columns:
-            df = df.withColumn(col_new, regexp_replace(col(col_old), "[$,%]", "").cast("int"))
+            df = df.withColumn(col_new, regexp_replace(col(col_old), "[\$,%]", "").cast("int"))
         elif col_new in double_columns:
-            df = df.withColumn(col_new, regexp_replace(col(col_old), "[$,%]", "").cast("double"))
+            df = df.withColumn(col_new, regexp_replace(col(col_old), "[\$,%]", "").cast("double"))
         else:
             df = df.withColumn(col_new, col(col_old))
             
@@ -119,6 +120,8 @@ for item in files:
 
 # COMMAND ----------
 
+from itertools import chain
+
 tablename2 = f"{tablename}_prvdr"
 files = []
 files_exist = {}
@@ -133,7 +136,8 @@ if spark.catalog.tableExists(f"{catalog}.{schema}.{tablename2}"):
                             .collect())])
     writemode = "append"
 
-for filepath in Path(f"{path}/{tablename}").glob("*_Prov.csv"):
+for filepath in chain(Path(f"{path}/{tablename}").glob("*_prvr.csv"),
+                 Path(f"{path}/{tablename}").glob("*_Prov.csv")):
     year = '20' + re.search("\_d[y]*(\d+)\_", filepath.stem.lower()).group(1)
     dt = parse(f"{year}-12-31").date()
     if dt not in files_exist:
@@ -143,42 +147,50 @@ files = sorted(files, key=lambda x: x[0], reverse=True)
 
 # COMMAND ----------
 
-int_columns = {"tot_hcpcs_cds",
-               "tot_benes",
-               "tot_srvcs",
-               "drug_tot_benes",
-               "drug_tot_hcpcs_cds",
-               "drug_tot_srvcs",
-               "med_tot_benes",
-               "med_tot_srvcs",
-               "med_tot_hcpcs_cds",
-               "bene_age_lt_65_cnt",
-               "bene_age_65_74_cnt",
-               "bene_age_75_84_cnt",
-               "bene_age_gt_84_cnt",
-               "bene_feml_cnt",
-               "bene_male_cnt",
-               "bene_race_wht_cnt",
-               "bene_race_black_cnt",
-               "bene_race_api_cnt",
-               "bene_race_hspnc_cnt",
-               "bene_race_natind_cnt",
-               "bene_race_othr_cnt",
-               "bene_dual_cnt",
-               "bene_ndual_cnt"
+int_columns = {"tot_suplrs", 
+               "tot_suplr_hcpcs_cds",
+               "tot_suplr_benes", 
+               "tot_suplr_clms", 
+               "tot_suplr_srvcs",
+               "dme_tot_suplrs",
+               "dme_tot_suplr_hcpcs_cds",
+               "dme_tot_suplr_benes",
+               "dme_tot_suplr_clms",
+               "dme_tot_suplr_srvcs",
+               "pos_tot_suplrs",
+               "pos_tot_suplr_hcpcs_cds",
+               "pos_tot_suplr_benes",
+               "pos_tot_suplr_clms",
+               "pos_tot_suplr_srvcs",
+               "drug_tot_suplrs",
+               "drug_tot_suplr_hcpcs_cds",
+               "drug_tot_suplr_benes",
+               "drug_tot_suplr_clms",
+               "drug_tot_suplr_srvcs",
+               "bene_age_lt_65_cnt", "bene_age_65_74_cnt", 
+                "bene_age_75_84_cnt", "bene_age_gt_84_cnt", 
+                "bene_feml_cnt", "bene_male_cnt", 
+                "bene_race_wht_cnt", "bene_race_black_cnt", 
+                "bene_race_api_cnt", "bene_race_hspnc_cnt", 
+                "bene_race_natind_cnt", "bene_race_othr_cnt",
+                "bene_dual_cnt", "bene_ndual_cnt"
                }
-double_columns = {"tot_sbmtd_chrg",
-                  "tot_mdcr_alowd_amt",
-                  "tot_mdcr_pymt_amt",
-                  "tot_mdcr_stdzd_amt",
-                  "drug_sbmtd_chrg",
-                  "drug_mdcr_alowd_amt",
-                  "drug_mdcr_pymt_amt",
-                  "drug_mdcr_stdzd_amt",
-                  "med_sbmtd_chrg",
-                  "med_mdcr_alowd_amt",
-                  "med_mdcr_pymt_amt",
-                  "med_mdcr_stdzd_amt",
+double_columns = {"suplr_sbmtd_chrgs", 
+                  "suplr_mdcr_alowd_amt",
+                  "suplr_mdcr_pymt_amt",
+                  "suplr_mdcr_stdzd_pymt_amt",
+                  "dme_suplr_sbmtd_chrgs",
+                  "dme_suplr_mdcr_alowd_amt",
+                  "dme_suplr_mdcr_pymt_amt",
+                  "dme_suplr_mdcr_stdzd_pymt_amt",
+                  "pos_suplr_sbmtd_chrgs",
+                  "pos_suplr_mdcr_alowd_amt",
+                  "pos_suplr_mdcr_pymt_amt",
+                  "pos_suplr_mdcr_stdzd_pymt_amt",
+                  "drug_suplr_sbmtd_chrgs",
+                  "drug_suplr_mdcr_alowd_amt",
+                  "drug_suplr_mdcr_pymt_amt",
+                  "drug_suplr_mdcr_stdzd_pymt_amt",
                   "bene_avg_age",
                   "bene_cc_af_pct",
                   "bene_cc_alzhmr_pct",
@@ -198,7 +210,12 @@ double_columns = {"tot_sbmtd_chrg",
                   "bene_cc_strok_pct",
                   "bene_avg_risk_scre"
                   }
-legacy_columns = {}
+legacy_columns = {"rfrg_prvdr_last_name": "rfrg_prvdr_last_name_org",
+                  "rfrg_prvdr_gnder": "rfrg_prvdr_gndr",
+                  "pos_tot_suplr_suplrs": "pos_tot_suplrs",
+                  "drug_tot_suplr_suplrs": "drug_tot_suplrs",
+                  "drug_tot_suplr_sbmtd_chrgs": "drug_suplr_sbmtd_chrgs"
+                  }
 
 for item in files:
     df = (spark.read.format("csv")
@@ -211,9 +228,9 @@ for item in files:
         header.append(col_new)
         
         if col_new in int_columns:
-            df = df.withColumn(col_new, regexp_replace(col(col_old), "[$,%]", "").cast("int"))
+            df = df.withColumn(col_new, regexp_replace(col(col_old), "[\$,%]", "").cast("int"))
         elif col_new in double_columns:
-            df = df.withColumn(col_new, regexp_replace(col(col_old), "[$,%]", "").cast("double"))
+            df = df.withColumn(col_new, regexp_replace(col(col_old), "[\$,%]", "").cast("double"))
         else:
             df = df.withColumn(col_new, col(col_old))
     df = (df.select(*header)
@@ -249,7 +266,7 @@ if spark.catalog.tableExists(f"{catalog}.{schema}.{tablename2}"):
                             .collect())])
     writemode = "append"
 
-for filepath in Path(f"{path}/{tablename}").glob("*_Geo.csv"):
+for filepath in Path(f"{path}/{tablename}").glob("*_geo*"):
     year = '20' + re.search("\_d[y]*(\d+)\_", filepath.stem.lower()).group(1)
     dt = parse(f"{year}-12-31").date()
     if dt not in files_exist:
@@ -259,14 +276,15 @@ files = sorted(files, key=lambda x: x[0], reverse=True)
 
 # COMMAND ----------
 
-int_columns = {"tot_rndrng_prvdrs", 
-               "tot_benes", 
-               "tot_srvcs",
-               "tot_bene_day_srvcs"}
-double_columns = {"avg_sbmtd_chrg",
-                  "avg_mdcr_alowd_amt",
-                  "avg_mdcr_pymt_amt",
-                  "avg_mdcr_stdzd_amt"}
+int_columns = {"tot_rfrg_prvdrs", 
+               "tot_suplrs", 
+               "tot_suplr_benes",
+               "tot_suplr_clms",
+               "tot_suplr_srvcs"}
+double_columns = {"avg_suplr_sbmtd_chrg",
+                  "avg_suplr_mdcr_alowd_amt"
+                  "avg_suplr_mdcr_pymt_amt",
+                  "avg_suplr_mdcr_stdzd_amt"}
 
 for item in files:
     df = (spark.read.format("csv")
@@ -276,9 +294,9 @@ for item in files:
     for col_old, col_new in zip(df.columns, change_header(df.columns)):
         header.append(col_new)
         if col_new in int_columns:
-            df = df.withColumn(col_new, regexp_replace(col(col_old), "[$,%]", "").cast("int"))
+            df = df.withColumn(col_new, regexp_replace(col(col_old), "[\$,%]", "").cast("int"))
         elif col_new in double_columns:
-            df = df.withColumn(col_new, regexp_replace(col(col_old), "[$,%]", "").cast("double"))
+            df = df.withColumn(col_new, regexp_replace(col(col_old), "[\$,%]", "").cast("double"))
         else:
             df = df.withColumn(col_new, col(col_old))
     df = (df.select(*header)

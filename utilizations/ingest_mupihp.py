@@ -1,11 +1,12 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Ingest the Medicare Outpatient files
+# MAGIC # Ingest the Medicare Inpatient files
 # MAGIC
 # MAGIC Three different levels of files exist:
 # MAGIC
 # MAGIC - provider-level (with a postfix, "_prvdr")
 # MAGIC - geographic-level (with a postfix, "_geo")
+# MAGIC - provider-service-level (**main**)
 # MAGIC
 
 # COMMAND ----------
@@ -22,7 +23,7 @@ import pandas as pd
 path = "/Volumes/mimi_ws_1/datacmsgov/src" # where all the input files are located
 catalog = "mimi_ws_1" # delta table destination catalog
 schema = "datacmsgov" # delta table destination schema
-tablename = "mupohp" # destination table
+tablename = "mupihp" # destination table
 
 # COMMAND ----------
 
@@ -53,7 +54,7 @@ if spark.catalog.tableExists(f"{catalog}.{schema}.{tablename}"):
 # COMMAND ----------
 
 files = []
-for filepath in Path(f"{path}/{tablename}").glob("*_Prov_Svc*"):
+for filepath in Path(f"{path}/{tablename}").glob("*_PRVSVC*"):
     year = '20' + re.search("\_d[y]*(\d+)\_", filepath.stem.lower()).group(1)
     dt = parse(f"{year}-12-31").date()
     if dt not in files_exist:
@@ -62,14 +63,10 @@ files = sorted(files, key=lambda x: x[0], reverse=True)
 
 # COMMAND ----------
 
-int_columns = {"bene_cnt", 
-               "capc_srvcs",
-               "outlier_srvcs"}
-double_columns = {"avg_tot_sbmtd_chrgs", 
-                  "avg_mdcr_alowd_amt",
-                  "avg_mdcr_pymt_amt",
-                  "avg_mdcr_stdzd_amt",
-                  "avg_mdcr_outlier_amt"}
+int_columns = {"tot_dschrgs"}
+double_columns = {"avg_submtd_cvrd_chrg",
+                  "avg_tot_pymt_amt",
+                  "avg_mdcr_pymt_amt"}
 legacy_columns = {}
 
 for item in files:
@@ -86,9 +83,9 @@ for item in files:
         header.append(col_new)
         
         if col_new in int_columns:
-            df = df.withColumn(col_new, regexp_replace(col(col_old), "[$,%]", "").cast("int"))
+            df = df.withColumn(col_new, regexp_replace(col(col_old), "[\$,%]", "").cast("int"))
         elif col_new in double_columns:
-            df = df.withColumn(col_new, regexp_replace(col(col_old), "[$,%]", "").cast("double"))
+            df = df.withColumn(col_new, regexp_replace(col(col_old), "[\$,%]", "").cast("double"))
         else:
             df = df.withColumn(col_new, col(col_old))
             
@@ -106,6 +103,102 @@ for item in files:
         .mode(writemode)
         .option("mergeSchema", "true")
         .saveAsTable(f"{catalog}.{schema}.{tablename}"))
+    
+    writemode="append"
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Provider-level (_prvdr)
+
+# COMMAND ----------
+
+tablename2 = f"{tablename}_prvdr"
+files = []
+files_exist = {}
+writemode = "overwrite"
+
+if spark.catalog.tableExists(f"{catalog}.{schema}.{tablename2}"):
+    files_exist = set([row["_input_file_date"] 
+                   for row in 
+                   (spark.read.table(f"{catalog}.{schema}.{tablename2}")
+                            .select("_input_file_date")
+                            .distinct()
+                            .collect())])
+    writemode = "append"
+
+for filepath in Path(f"{path}/{tablename}").glob("*_PRV.CSV"):
+    year = '20' + re.search("\_d[y]*(\d+)\_", filepath.stem.lower()).group(1)
+    dt = parse(f"{year}-12-31").date()
+    if dt not in files_exist:
+        files.append((dt, filepath))
+
+files = sorted(files, key=lambda x: x[0], reverse=True)
+
+# COMMAND ----------
+
+int_columns = {"tot_dschrgs",
+               "tot_benes",
+               "tot_cvrd_days",
+               "tot_days",
+               "bene_age_lt_65_cnt",
+               "bene_age_65_74_cnt",
+               "bene_age_75_84_cnt",
+               "bene_age_gt_84_cnt",
+               "bene_feml_cnt",
+               "bene_male_cnt",
+               "bene_race_wht_cnt",
+               "bene_race_black_cnt",
+               "bene_race_api_cnt",
+               "bene_race_hspnc_cnt",
+               "bene_race_natind_cnt",
+               "bene_race_othr_cnt",
+               "bene_dual_cnt",
+               "bene_ndual_cnt"}
+double_columns = {"bene_avg_age",
+                  "avg_tot_sbmtd_chrgs",
+                  "avg_mdcr_alowd_amt",
+                  "avg_mdcr_pymt_amt",
+                  "avg_mdcr_outlier_amt",
+                  "bene_cc_af_pct",
+                  "bene_cc_alzhmr_pct",
+                  "bene_cc_asthma_pct",
+                  "bene_cc_cncr_pct",
+                  "bene_cc_chf_pct",
+                  "bene_cc_ckd_pct",
+                  "bene_cc_copd_pct",
+                  "bene_cc_dprssn_pct",
+                  "bene_cc_dbts_pct",
+                  "bene_cc_hyplpdma_pct",
+                  "bene_cc_hyprtnsn_pct",
+                  "bene_cc_ihd_pct",
+                  "bene_cc_opo_pct", 
+                  "bene_cc_raoa_pct",
+                  "bene_cc_sz_pct",
+                  "bene_cc_strok_pct",
+                  "bene_avg_risk_scre"}
+
+for item in files:
+    df = (spark.read.format("csv")
+            .option("header", "true")
+            .load(str(item[1])))
+    header = []
+    for col_old, col_new in zip(df.columns, change_header(df.columns)):
+        header.append(col_new)
+        if col_new in int_columns:
+            df = df.withColumn(col_new, regexp_replace(col(col_old), "[\$,%]", "").cast("int"))
+        elif col_new in double_columns:
+            df = df.withColumn(col_new, regexp_replace(col(col_old), "[\$,%]", "").cast("double"))
+        else:
+            df = df.withColumn(col_new, col(col_old))
+    df = (df.select(*header)
+          .withColumn("_input_file_date", lit(item[0])))
+    
+    (df.write
+        .format('delta')
+        .mode(writemode)
+        .option("mergeSchema", "true")
+        .saveAsTable(f"{catalog}.{schema}.{tablename2}"))
     
     writemode="append"
 
@@ -130,7 +223,7 @@ if spark.catalog.tableExists(f"{catalog}.{schema}.{tablename2}"):
                             .collect())])
     writemode = "append"
 
-for filepath in Path(f"{path}/{tablename}").glob("*_Geo*"):
+for filepath in Path(f"{path}/{tablename}").glob("*_GEO.CSV"):
     year = '20' + re.search("\_d[y]*(\d+)\_", filepath.stem.lower()).group(1)
     dt = parse(f"{year}-12-31").date()
     if dt not in files_exist:
@@ -140,13 +233,10 @@ files = sorted(files, key=lambda x: x[0], reverse=True)
 
 # COMMAND ----------
 
-int_columns = {"bene_cnt",
-               "capc_srvcs", 
-               "outlier_srvcs"}
-double_columns = {"avg_tot_sbmtd_chrgs",
-                  "avg_mdcr_alowd_amt",
-                  "avg_mdcr_pymt_amt",
-                  "avg_mdcr_outlier_amt"}
+int_columns = {"tot_dschrgs"}
+double_columns = {"avg_submtd_cvrd_chrg",
+                  "avg_tot_pymt_amt",
+                  "avg_mdcr_pymt_amt"}
 
 for item in files:
     df = (spark.read.format("csv")
@@ -156,9 +246,9 @@ for item in files:
     for col_old, col_new in zip(df.columns, change_header(df.columns)):
         header.append(col_new)
         if col_new in int_columns:
-            df = df.withColumn(col_new, regexp_replace(col(col_old), "[$,%]", "").cast("int"))
+            df = df.withColumn(col_new, regexp_replace(col(col_old), "[\$,%]", "").cast("int"))
         elif col_new in double_columns:
-            df = df.withColumn(col_new, regexp_replace(col(col_old), "[$,%]", "").cast("double"))
+            df = df.withColumn(col_new, regexp_replace(col(col_old), "[\$,%]", "").cast("double"))
         else:
             df = df.withColumn(col_new, col(col_old))
     df = (df.select(*header)
