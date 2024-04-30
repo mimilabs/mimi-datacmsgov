@@ -115,3 +115,66 @@ download_urls = (spark.read.table("mimi_ws_1.datacmsgov.datacatalog")
                         .contains("Medicare Fee-For-Service Public Provider Enrollment"))
                     .toPandas()["downloadURL"].to_list())
 download_files(download_urls, volumepath, "pc_provider")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Ownerships
+
+# COMMAND ----------
+
+download_urls = (spark.read.table("mimi_ws_1.datacmsgov.datacatalog")
+                    .filter(col("mediaType")=="text/csv")
+                    .filter(col("title")
+                        .contains("Hospital All Owners"))
+                    .toPandas()["downloadURL"].to_list())
+download_files(download_urls, volumepath, "pc_hospital_owner")
+
+# COMMAND ----------
+
+download_urls = (spark.read.table("mimi_ws_1.datacmsgov.datacatalog")
+                    .filter(col("mediaType")=="text/csv")
+                    .filter(col("title")
+                        .contains("Hospice All Owners"))
+                    .toPandas()["downloadURL"].to_list())
+download_files(download_urls, volumepath, "pc_homehealth")
+
+# COMMAND ----------
+
+download_urls = (spark.read.table("mimi_ws_1.datacmsgov.datacatalog")
+                    .filter(col("mediaType")=="text/csv")
+                    .filter(col("title")
+                        .contains("Home Health Agency All Owners"))
+                    .toPandas()["downloadURL"].to_list())
+download_files(download_urls, volumepath, "pc_homehealth_owner")
+
+# COMMAND ----------
+
+download_urls = (spark.read.table("mimi_ws_1.datacmsgov.datacatalog")
+                    .filter(col("mediaType")=="text/csv")
+                    .filter(col("title")
+                        .contains("Federally Qualified Health Center All Owners"))
+                    .toPandas()["downloadURL"].to_list())
+download_files(download_urls, volumepath, "pc_fqhc_owner")
+
+# COMMAND ----------
+
+download_urls = (spark.read.table("mimi_ws_1.datacmsgov.datacatalog")
+                    .filter(col("mediaType")=="text/csv")
+                    .filter(col("title")
+                        .contains("Rural Health Clinic All Owners"))
+                    .toPandas()["downloadURL"].to_list())
+download_files(download_urls, volumepath, "pc_ruralhealthclinic_owner")
+
+# COMMAND ----------
+
+download_urls = (spark.read.table("mimi_ws_1.datacmsgov.datacatalog")
+                    .filter(col("mediaType")=="text/csv")
+                    .filter(col("title")
+                        .contains("Skilled Nursing Facility All Owners"))
+                    .toPandas()["downloadURL"].to_list())
+download_files(download_urls, volumepath, "pc_snf_owner")
+
+# COMMAND ----------
+
+
