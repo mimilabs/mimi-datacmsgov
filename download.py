@@ -201,6 +201,21 @@ download_files(download_urls, volumepath, "mupohp")
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ## Post-acute/Hospice
+
+# COMMAND ----------
+
+pdf = (spark.read.table("mimi_ws_1.datacmsgov.datacatalog")
+                    .filter(col("mediaType")=="text/csv")
+                    .filter(col("title")
+                        .contains("Medicare Post-Acute Care and Hospice - by"))
+                    .toPandas())
+download_urls = pdf["downloadURL"].to_list()
+download_files(download_urls, volumepath, "muppac")
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## Inpatient
 
 # COMMAND ----------
