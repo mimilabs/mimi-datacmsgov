@@ -15,7 +15,7 @@ from pathlib import Path
 import re
 import csv
 from pyspark.sql.types import IntegerType
-from pyspark.sql.functions import col, lit, to_date, regexp_replace
+from pyspark.sql.functions import col, lit, to_date, regexp_replace, lpad
 from datetime import datetime
 from dateutil.parser import parse
 import pandas as pd
@@ -156,6 +156,9 @@ int_columns = {"tot_dschrgs",
                "bene_dual_cnt",
                "bene_ndual_cnt"}
 double_columns = {"bene_avg_age",
+                  "tot_submtd_cvrd_chrg",
+                  "tot_pymt_amt",
+                  "tot_mdcr_pymt_amt",
                   "avg_tot_sbmtd_chrgs",
                   "avg_mdcr_alowd_amt",
                   "avg_mdcr_pymt_amt",
@@ -185,12 +188,16 @@ for item in files:
     header = []
     for col_old, col_new in zip(df.columns, change_header(df.columns)):
         header.append(col_new)
-        if col_new in int_columns:
+        # Somehow, the CCN needs to be zero-padded for these files
+        if col_new == "rndrng_prvdr_ccn":
+            df = df.withColumn(col_new, lpad(col(col_old), 6, "0"))
+        elif col_new in int_columns:
             df = df.withColumn(col_new, regexp_replace(col(col_old), "[\$,%]", "").cast("int"))
         elif col_new in double_columns:
             df = df.withColumn(col_new, regexp_replace(col(col_old), "[\$,%]", "").cast("double"))
         else:
             df = df.withColumn(col_new, col(col_old))
+
     df = (df.select(*header)
           .withColumn("_input_file_date", lit(item[0])))
     
@@ -261,7 +268,3 @@ for item in files:
         .saveAsTable(f"{catalog}.{schema}.{tablename2}"))
     
     writemode="append"
-
-# COMMAND ----------
-
-
