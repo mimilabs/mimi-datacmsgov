@@ -230,4 +230,20 @@ download_files(download_urls, volumepath, "mupihp")
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC ## BETOS Mapping
+
+# COMMAND ----------
+
+
+pdf = (spark.read.table("mimi_ws_1.datacmsgov.datacatalog")
+                    .filter(col("mediaType")=="text/csv")
+                    .filter(col("title")
+                        .contains("Restructured BETOS Classification System"))
+                    .toPandas())
+download_urls = pdf["downloadURL"].to_list()
+download_file(download_urls[0], "rbcs_2023_taxonomy.csv", volumepath, "betos")
+
+# COMMAND ----------
+
 
