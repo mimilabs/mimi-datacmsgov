@@ -1,10 +1,7 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Ingest the Opt-Out Affidavits
+# MAGIC # Ingest the Betos mapping file
 # MAGIC
-# MAGIC The input files have a lot of errors (typos, etc.) and duplicates. It needs some amount of cleaning work. 
-# MAGIC We first load the data as-is, and then clean up the file a bit. 
-# MAGIC Also, the files are relatively small - loadable in memory, so we leverage that side to make things easy.
 
 # COMMAND ----------
 
@@ -69,7 +66,10 @@ pdf_full = pd.concat(pdf_lst)
 # MAGIC The Restructured BETOS Classification System (RBCS) dataset is a taxonomy that allows researchers to group healthcare service codes for Medicare Part B services (i.e., HCPCS codes) into clinically meaningful categories and subcategories. It is based on the original Berenson-Eggers Type of Service (BETOS) classification created in the 1980s, and includes notable updates such as Part B non-physician services. The RBCS will undergo annual updates by a technical expert panel of researchers and clinicians.
 # MAGIC
 # MAGIC This dataset is based on Medicare Part B healthcare service codes. It allows users to group Medicare Part B healthcare service codes into clinically meaningful and consistent categories and subcategories. Users may use the RBCS to analyze trends and perform other types of health services analytic work.';
-# MAGIC
+
+# COMMAND ----------
+
+# MAGIC %sql
 # MAGIC
 # MAGIC ALTER TABLE mimi_ws_1.datacmsgov.betos ALTER COLUMN hcpcs_cd COMMENT 'HCPCS or CPT code.';
 # MAGIC ALTER TABLE mimi_ws_1.datacmsgov.betos ALTER COLUMN rbcs_id COMMENT 'RBCS identifier which is comprised of 6 characters. The first character identifies the category; the second character identifies the subcategory; the third, fourth, and fifth characters identify the family, and the sixth character identifies whether the service is a major procedure.';

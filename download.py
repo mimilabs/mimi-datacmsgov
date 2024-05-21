@@ -10,6 +10,7 @@ from pyspark.sql.functions import col
 from tqdm import tqdm
 from pathlib import Path
 import re
+from datetime import datetime
 
 url = "https://data.cms.gov/data.json"
 catalog = "mimi_ws_1"
@@ -243,6 +244,60 @@ pdf = (spark.read.table("mimi_ws_1.datacmsgov.datacatalog")
                     .toPandas())
 download_urls = pdf["downloadURL"].to_list()
 download_file(download_urls[0], "rbcs_2023_taxonomy.csv", volumepath, "betos")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## National Geographic Variation
+
+# COMMAND ----------
+
+pdf = (spark.read.table("mimi_ws_1.datacmsgov.datacatalog")
+                    .filter(col("mediaType")=="text/csv")
+                    .filter(col("title")
+                        .contains("Medicare Geographic Variation"))
+                    .toPandas())
+download_urls = pdf["downloadURL"].to_list()
+messy_fn_to_clean_fn = {"2014-2022%20Medicare%20FFS%20Geographic%20Variation%20Public%20Use%20File.csv": "medicare_geographic_variation_2022.csv",
+"Geographic%20Variation%20Public%20Use%20File%20State%20County.csv": "medicare_geographic_variation_2021.csv"}
+filenames = [messy_fn_to_clean_fn.get(url.split("/")[-1], url.split("/")[-1])
+             for url in download_urls]
+download_files(download_urls, volumepath, "geovariation", filenames=filenames)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC
+# MAGIC ## Order and Referring
+
+# COMMAND ----------
+
+
+pdf = (spark.read.table("mimi_ws_1.datacmsgov.datacatalog")
+                    .filter(col("mediaType")=="text/csv")
+                    .filter(col("title")
+                        .contains("Order and Referring"))
+                    .toPandas())
+download_urls = pdf["downloadURL"].to_list()
+download_files(download_urls, volumepath, "orderandreferring")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## COVID-19 Nursing Homes
+
+# COMMAND ----------
+
+pdf = (spark.read.table("mimi_ws_1.datacmsgov.datacatalog")
+                    .filter(col("mediaType")=="text/csv")
+                    .filter(col("title")
+                        .contains("COVID-19 Nursing Home Data"))
+                    .toPandas())
+# CMS "overwrites" the data file every week. However, we keep the weekly file separately.
+download_urls = pdf["downloadURL"].to_list()
+today = datetime.today().strftime('%Y-%m-%d')
+fn = f"covid19_nursing_home_data_{today}.csv"
+download_file(download_urls[0], fn, volumepath, "covid19nursinghomes")
 
 # COMMAND ----------
 
