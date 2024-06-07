@@ -1,4 +1,11 @@
 # Databricks notebook source
+# MAGIC %md
+# MAGIC # Weekly Download
+# MAGIC
+# MAGIC We download: weekly, monthly, annually updated datasets every week.
+
+# COMMAND ----------
+
 !pip install tqdm
 
 # COMMAND ----------
@@ -12,7 +19,6 @@ from pathlib import Path
 import re
 from datetime import datetime
 
-url = "https://data.cms.gov/data.json"
 catalog = "mimi_ws_1"
 schema = "datacmsgov"
 tablename = "datacatalog"
@@ -44,45 +50,6 @@ def download_files(urls, path, folder, filenames = None):
         else:
             print(f"{filename} downloading...")
             download_file(download_url, filename, path, folder)
-
-# COMMAND ----------
-
-res = requests.get(url)
-
-# COMMAND ----------
-
-header1 = ["accessLevel",
-           "bureauCode", 
-          "accrualPeriodicity", 
-          "describedBy", 
-          "description"]
-header2 = ["format",
-          "downloadURL",
-          "accessURL",
-          "mediaType",
-          "title",
-          "modified",
-          "temporal"]
-data = []
-for d in res.json()["dataset"]:
-    row1 = []
-    for k1 in header1:
-        row1.append(d.get(k1, ""))
-    for dd in d["distribution"]:
-        row2 = []
-        for k2 in header2:
-            row2.append(dd.get(k2, ""))
-        data.append(row1 + row2)
-
-# COMMAND ----------
-
-
-(spark.createDataFrame(pd.DataFrame(data, 
-                                   columns=header1 + header2))
-        .write
-        .format("delta")
-        .mode("overwrite")
-        .saveAsTable(f"{catalog}.{schema}.{tablename}"))
 
 # COMMAND ----------
 
@@ -232,22 +199,6 @@ download_files(download_urls, volumepath, "mupihp")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## BETOS Mapping
-
-# COMMAND ----------
-
-
-pdf = (spark.read.table("mimi_ws_1.datacmsgov.datacatalog")
-                    .filter(col("mediaType")=="text/csv")
-                    .filter(col("title")
-                        .contains("Restructured BETOS Classification System"))
-                    .toPandas())
-download_urls = pdf["downloadURL"].to_list()
-download_file(download_urls[0], "rbcs_2023_taxonomy.csv", volumepath, "betos")
-
-# COMMAND ----------
-
-# MAGIC %md
 # MAGIC ## National Geographic Variation
 
 # COMMAND ----------
@@ -267,23 +218,6 @@ download_files(download_urls, volumepath, "geovariation", filenames=filenames)
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC
-# MAGIC ## Order and Referring
-
-# COMMAND ----------
-
-
-pdf = (spark.read.table("mimi_ws_1.datacmsgov.datacatalog")
-                    .filter(col("mediaType")=="text/csv")
-                    .filter(col("title")
-                        .contains("Order and Referring"))
-                    .toPandas())
-download_urls = pdf["downloadURL"].to_list()
-download_files(download_urls, volumepath, "orderandreferring")
-
-# COMMAND ----------
-
-# MAGIC %md
 # MAGIC ## COVID-19 Nursing Homes
 
 # COMMAND ----------
@@ -298,7 +232,3 @@ download_urls = pdf["downloadURL"].to_list()
 today = datetime.today().strftime('%Y-%m-%d')
 fn = f"covid19_nursing_home_data_{today}.csv"
 download_file(download_urls[0], fn, volumepath, "covid19nursinghomes")
-
-# COMMAND ----------
-
-
