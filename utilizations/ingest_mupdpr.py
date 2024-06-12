@@ -34,33 +34,23 @@ def change_header(header_org):
 
 # COMMAND ----------
 
-# We want to skip those files that are already in the delta tables.
-# We look up the table, and see if the files are already there or not.
-files_exist = {}
-writemode = "overwrite"
-if spark.catalog.tableExists(f"{catalog}.{schema}.{tablename}"):
-    files_exist = set([row["_input_file_date"] 
-                   for row in 
-                   (spark.read.table(f"{catalog}.{schema}.{tablename}")
-                            .select("_input_file_date")
-                            .distinct()
-                            .collect())])
-    writemode = "append"
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC ## Provider-Service-level (main)
 
 # COMMAND ----------
 
-files = []
-for filepath in Path(f"{path}/{tablename}").glob("*_NPIBN*"):
-    year = '20' + re.search("\_DY(\d+)\_", filepath.stem).group(1)
-    dt = parse(f"{year}-12-31").date()
-    if dt not in files_exist:
-        files.append((dt, filepath))
-files = sorted(files, key=lambda x: x[0], reverse=True)
+files_latest = {}
+pathobj = Path(f"{path}/{tablename}")
+for filepath in pathobj.glob("*_NPIBN*"):
+    dy = '20' + re.search("\_d[y]*(\d+)\_", filepath.stem.lower()).group(1)
+    ry = '20' + re.search("\_r[y]*(\d+)\_", filepath.stem.lower()).group(1)
+    dt = parse(f"{dy}-12-31").date()
+    rt = parse(f"{ry}-12-31").date()
+    if dt not in files_latest:
+        files_latest[dt] = (dt, filepath, rt)
+    elif files_latest[dt][2] < rt:
+        files_latest[dt] = (dt, filepath, rt)
+files = sorted([x for x in files_latest.values()], key=lambda x: x[0], reverse=True)
 
 # COMMAND ----------
 
@@ -86,14 +76,17 @@ for item in files:
         else:
             df = df.withColumn(col_new, col(col_old))
     df = (df.select(*header)
-          .withColumn("_input_file_date", lit(item[0])))
+          .withColumn("_input_file_date", lit(item[0]))
+          .withColumn("_source_file_name", lit(item[1].name)))
     
+    ifd_str = item[0].strftime('%Y-%m-%d')
     (df.write
         .format('delta')
-        .mode(writemode)
+        .mode("overwrite")
+        .option("replaceWhere", f"_input_file_date = '{ifd_str}'")
+        .option("mergeSchema", "true")
         .saveAsTable(f"{catalog}.{schema}.{tablename}"))
     
-    writemode="append"
 
 # COMMAND ----------
 
@@ -104,26 +97,18 @@ for item in files:
 # COMMAND ----------
 
 tablename2 = f"{tablename}_prvdr"
-files = []
-files_exist = {}
-writemode = "overwrite"
-
-if spark.catalog.tableExists(f"{catalog}.{schema}.{tablename2}"):
-    files_exist = set([row["_input_file_date"] 
-                   for row in 
-                   (spark.read.table(f"{catalog}.{schema}.{tablename2}")
-                            .select("_input_file_date")
-                            .distinct()
-                            .collect())])
-    writemode = "append"
-
-for filepath in Path(f"{path}/{tablename}").glob("*_NPI.csv"):
-    year = '20' + re.search("\_DY(\d+)\_", filepath.stem).group(1)
-    dt = parse(f"{year}-12-31").date()
-    if dt not in files_exist:
-        files.append((dt, filepath))
-
-files = sorted(files, key=lambda x: x[0], reverse=True)
+files_latest = {}
+pathobj = Path(f"{path}/{tablename}")
+for filepath in pathobj.glob("*_NPI.csv"):
+    dy = '20' + re.search("\_d[y]*(\d+)\_", filepath.stem.lower()).group(1)
+    ry = '20' + re.search("\_r[y]*(\d+)\_", filepath.stem.lower()).group(1)
+    dt = parse(f"{dy}-12-31").date()
+    rt = parse(f"{ry}-12-31").date()
+    if dt not in files_latest:
+        files_latest[dt] = (dt, filepath, rt)
+    elif files_latest[dt][2] < rt:
+        files_latest[dt] = (dt, filepath, rt)
+files = sorted([x for x in files_latest.values()], key=lambda x: x[0], reverse=True)
 
 # COMMAND ----------
 
@@ -166,14 +151,16 @@ for item in files:
         else:
             df = df.withColumn(col_new, col(col_old))
     df = (df.select(*header)
-          .withColumn("_input_file_date", lit(item[0])))
+          .withColumn("_input_file_date", lit(item[0]))
+          .withColumn("_source_file_name", lit(item[1].name)))
     
+    ifd_str = item[0].strftime('%Y-%m-%d')
     (df.write
         .format('delta')
-        .mode(writemode)
+        .mode("overwrite")
+        .option("replaceWhere", f"_input_file_date = '{ifd_str}'")
+        .option("mergeSchema", "true")
         .saveAsTable(f"{catalog}.{schema}.{tablename2}"))
-    
-    writemode="append"
 
 # COMMAND ----------
 
@@ -183,26 +170,18 @@ for item in files:
 # COMMAND ----------
 
 tablename2 = f"{tablename}_geo"
-files = []
-files_exist = {}
-writemode = "overwrite"
-
-if spark.catalog.tableExists(f"{catalog}.{schema}.{tablename2}"):
-    files_exist = set([row["_input_file_date"] 
-                   for row in 
-                   (spark.read.table(f"{catalog}.{schema}.{tablename2}")
-                            .select("_input_file_date")
-                            .distinct()
-                            .collect())])
-    writemode = "append"
-
-for filepath in Path(f"{path}/{tablename}").glob("*_Geo*"):
-    year = '20' + re.search("\_DY(\d+)\_", filepath.stem).group(1)
-    dt = parse(f"{year}-12-31").date()
-    if dt not in files_exist:
-        files.append((dt, filepath))
-
-files = sorted(files, key=lambda x: x[0], reverse=True)
+files_latest = {}
+pathobj = Path(f"{path}/{tablename}")
+for filepath in pathobj.glob("*_Geo*"):
+    dy = '20' + re.search("\_d[y]*(\d+)\_", filepath.stem.lower()).group(1)
+    ry = '20' + re.search("\_r[y]*(\d+)\_", filepath.stem.lower()).group(1)
+    dt = parse(f"{dy}-12-31").date()
+    rt = parse(f"{ry}-12-31").date()
+    if dt not in files_latest:
+        files_latest[dt] = (dt, filepath, rt)
+    elif files_latest[dt][2] < rt:
+        files_latest[dt] = (dt, filepath, rt)
+files = sorted([x for x in files_latest.values()], key=lambda x: x[0], reverse=True)
 
 # COMMAND ----------
 
@@ -232,14 +211,16 @@ for item in files:
         else:
             df = df.withColumn(col_new, col(col_old))
     df = (df.select(*header)
-          .withColumn("_input_file_date", lit(item[0])))
+          .withColumn("_input_file_date", lit(item[0]))
+          .withColumn("_source_file_name", lit(item[1].name)))
     
+    ifd_str = item[0].strftime('%Y-%m-%d')
     (df.write
         .format('delta')
-        .mode(writemode)
+        .mode("overwrite")
+        .option("replaceWhere", f"_input_file_date = '{ifd_str}'")
+        .option("mergeSchema", "true")
         .saveAsTable(f"{catalog}.{schema}.{tablename2}"))
-    
-    writemode="append"
 
 # COMMAND ----------
 
